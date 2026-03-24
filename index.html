@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚻香港公共廁所潔淨地圖 | HK Toilet Rating</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#1a73e8;--primary-dark:#1557b0;--primary-light:#e8f0fe;
+  --accent:#ea4335;--green:#34a853;--yellow:#fbbc04;
+  --bg:#f8f9fa;--card:#fff;--text:#202124;--text2:#5f6368;--border:#dadce0;
+  --shadow:0 1px 4px rgba(0,0,0,.1);--shadow-lg:0 4px 16px rgba(0,0,0,.12);
+  --radius:12px;--nav-h:64px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans TC',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{text-decoration:none;color:var(--primary)}
+
+.navbar{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:var(--card);box-shadow:var(--shadow);z-index:1000;display:flex;align-items:center}
+.nav-inner{width:100%;max-width:1100px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-size:1.35em;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none}
+.nav-logo:hover{opacity:.8}
+.nav-buttons{display:flex;gap:8px}
+.nav-btn{padding:7px 18px;border:2px solid var(--primary);background:0 0;color:var(--primary);font-size:.9em;font-weight:600;border-radius:24px;cursor:pointer;transition:.2s;font-family:inherit}
+.nav-btn:hover,.nav-btn.active{background:var(--primary);color:#fff}
+
+.main{margin-top:var(--nav-h);min-height:calc(100vh - var(--nav-h) - 56px);padding-bottom:30px}
+
+.hero{text-align:center;padding:36px 20px 10px}
+.hero h1{font-size:2.1em;font-weight:900;margin-bottom:6px}
+.hero p{font-size:1.05em;color:var(--text2);max-width:520px;margin:0 auto}
+
+.map-section{max-width:880px;margin:18px auto;padding:0 16px}
+.map-box{position:relative;width:100%;padding-bottom:62%;border-radius:var(--radius);box-shadow:var(--shadow-lg);overflow:hidden;background:#dbeeff}
+.map-box svg{position:absolute;top:0;left:0;width:100%;height:100%}
+.map-marker{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:10;transition:.25s;text-align:center}
+.map-marker:hover{transform:translate(-50%,-50%) scale(1.18);z-index:20}
+.map-marker.dim{opacity:.2;pointer-events:none}
+.marker-dot{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.65em;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);margin:0 auto 3px;transition:.25s}
+.marker-label{font-size:.78em;font-weight:600;color:var(--text);text-shadow:1px 1px 2px rgba(255,255,255,.9);white-space:nowrap}
+
+.breadcrumb{font-size:.88em;color:var(--text2);margin-bottom:16px}
+.breadcrumb a{font-weight:500}
+.breadcrumb span{margin:0 6px;color:#bbb}
+
+.page-wrap{max-width:920px;margin:0 auto;padding:28px 20px}
+.page-wrap h1{font-size:1.9em;font-weight:800;margin-bottom:4px}
+.page-wrap .subtitle{color:var(--text2);margin-bottom:24px;font-size:.95em}
+.map-embed{width:100%;height:360px;border:0;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:28px}
+.section-title{font-size:1.15em;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--primary)}
+.toilet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-bottom:30px}
+.toilet-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;cursor:pointer;transition:.25s;border-left:5px solid}
+.toilet-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-3px)}
+.type-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.78em;font-weight:600;margin-bottom:6px}
+.type-badge.mall{background:#e8f5e9;color:#2e7d32}
+.type-badge.public{background:#fff3e0;color:#e65100}
+.type-badge.airport{background:#e3f2fd;color:#1565c0}
+.toilet-card h3{font-size:1.05em;margin-bottom:10px}
+.score-row{display:flex;align-items:center;gap:10px}
+.score-big{font-size:1.7em;font-weight:800;line-height:1}
+.score-bar-wrap{flex:1}
+.score-bar{height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden}
+.score-fill{height:100%;border-radius:4px;transition:width .6s}
+.score-label{font-size:.78em;color:var(--text2);margin-top:2px}
+
+.toilet-header{margin-bottom:24px}
+.toilet-header h1{font-size:1.75em}
+.toilet-header .type-badge{font-size:.85em;vertical-align:middle;margin-left:8px}
+.total-score-box{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;text-align:center;margin-bottom:24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.total-score-circle{width:90px;height:90px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800;flex-shrink:0}
+.total-score-circle .num{font-size:2em;line-height:1}
+.total-score-circle .den{font-size:.8em;opacity:.85}
+.total-desc{text-align:left}
+.total-desc .label{font-size:1.3em;font-weight:700;margin-bottom:2px}
+.total-desc .sub{font-size:.9em;color:var(--text2)}
+.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.rating-table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.rating-table th{background:var(--primary);color:#fff;padding:12px 14px;text-align:left;font-weight:500;font-size:.92em}
+.rating-table td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:.92em}
+.rating-table tr:last-child td{border-bottom:0}
+.rating-table .crit-name{font-weight:600}
+.rating-table .score-cell{font-weight:800;font-size:1.05em;text-align:center;width:60px;white-space:nowrap;min-width:70px}
+.rating-table .desc-cell{color:var(--text2);font-size:.85em}
+.photo-gallery{display:flex;flex-direction:column;gap:14px}
+.photo-placeholder{background:linear-gradient(135deg,#e8e8e8,#f5f5f5);border-radius:var(--radius);aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:.95em;box-shadow:var(--shadow)}
+
+.criteria-table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-top:16px}
+.criteria-table th{background:var(--primary);color:#fff;padding:14px;font-weight:600}
+.criteria-table td{padding:12px 14px;border-bottom:1px solid var(--border);text-align:center;font-size:.9em}
+.criteria-table td:first-child{font-weight:700;text-align:left;background:#f9f9f9}
+.criteria-table tr:last-child td{border-bottom:0}
+
+/* Gender tabs */
+.gender-tabs{display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+.gender-tab{flex:1;padding:12px 20px;text-align:center;font-weight:700;font-size:1em;cursor:pointer;border:none;font-family:inherit;transition:.2s}
+.gender-tab.male-tab{background:#e3f2fd;color:#1565c0}
+.gender-tab.female-tab{background:#fce4ec;color:#c62828}
+.gender-tab.male-tab.active{background:#1565c0;color:#fff}
+.gender-tab.female-tab.active{background:#c62828;color:#fff}
+.gender-content{display:none}
+.gender-content.active{display:block}
+
+.footer{text-align:center;padding:16px 20px;background:var(--card);border-top:1px solid var(--border);font-size:.92em}
+.footer a{font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.ig-icon{width:20px;height:20px;display:inline-block}
+
+@media(max-width:768px){
+  .content-grid{grid-template-columns:1fr}
+  .hero h1{font-size:1.55em}
+  .nav-btn{padding:5px 12px;font-size:.82em}
+  .nav-logo{font-size:1.15em}
+  .total-score-box{flex-direction:column;text-align:center}
+  .total-desc{text-align:center}
+}
+@media(max-width:480px){
+  .nav-buttons{gap:4px}
+  .nav-btn{padding:4px 9px;font-size:.75em}
+  .toilet-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a class="nav-logo" onclick="navigate('#home')">🚻香港公共廁所潔淨地圖</a>
+    <div class="nav-buttons">
+      <button class="nav-btn" data-region="hk-island" onclick="filterRegion('hk-island',this)">港島</button>
+      <button class="nav-btn" data-region="kowloon" onclick="filterRegion('kowloon',this)">九龍</button>
+      <button class="nav-btn" data-region="nt" onclick="filterRegion('nt',this)">新界</button>
+    </div>
+  </div>
+</nav>
+
+<main class="main" id="app"></main>
+
+<footer class="footer">
+  <a href="https://www.instagram.com/" target="_blank" rel="noopener">
+    <svg class="ig-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+    Follow us on Instagram
+  </a>
+</footer>
+
+<script>
+const CRITERIA = ['地面清潔','氣味','設施完整','衛生用品','整體觀感'];
+const CRITERIA_DESC = [
+  ['明顯垃圾、污漬或積水','少量水漬或輕微污漬','無明顯垃圾、無污漬、地面乾爽'],
+  ['明顯刺鼻或不適氣味','輕微氣味','無明顯異味'],
+  ['多個損壞','少量損壞','正常'],
+  ['缺紙巾／無梘液','部分不足','充足'],
+  ['非常差','一般','良好']
+];
+
+const DISTRICTS = [
+  {
+    id:'yautsimmong', name:'油尖旺區', region:'kowloon', color:'#FF9800',
+    mapX:50, mapY:53,
+    lat:22.318, lng:114.170, zoom:15,
+    toilets:[
+      {id:'langham',name:'朗豪坊',type:'mall',ratings:[1,2,2,2,2],
+        images:[
+          {src:'images/langham_toilet.jpg',label:'廁格'},
+          {src:'images/langham_sink.jpg',label:'洗手盤'},
+          {src:'images/langham_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'ymt_market',name:'油麻地街市',type:'public',ratings:[0,1,1,1,1],
+        images:[
+          {src:'images/ymt_market_toilet.jpg',label:'廁格'},
+          {src:'images/ymt_market_sink.jpg',label:'洗手盤'},
+          {src:'images/ymt_market_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'sai_yee',name:'洗衣街花園公廁',type:'public',ratings:[1,1,1,2,2],
+        images:[
+          {src:'images/sai_yee_toilet.jpg',label:'廁格'},
+          {src:'images/sai_yee_sink.jpg',label:'洗手盤'},
+          {src:'images/sai_yee_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'tst_pier',name:'尖沙咀碼頭',type:'public',ratings:[1,1,2,1,1],
+        images:[
+          {src:'images/tsimshatsui_toilet.jpg',label:'廁格'},
+          {src:'images/tsimshatsui_sink.jpg',label:'洗手盤'},
+          {src:'images/tsimshatsui_facilities.jpg',label:'設施'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'taipo', name:'大埔區', region:'nt', color:'#E91E63',
+    mapX:60, mapY:20,
+    lat:22.451, lng:114.164, zoom:14,
+    toilets:[
+      {id:'cheong_wan',name:'大埔昌運中心商場',type:'mall',ratings:[1,0,0.5,0,1],
+        images:[
+          {src:'images/cheong_wan_toilet.jpg',label:'廁格'},
+          {src:'images/cheong_wan_urinal.jpg',label:'尿兜'},
+          {src:'images/cheong_wan_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'tp_centre',name:'大埔中心',type:'public',ratings:[2,2,1,1,1],
+        images:[
+          {src:'images/tp_centre_toilet.jpg',label:'廁格'},
+          {src:'images/tp_centre_sink.jpg',label:'洗手盤'},
+          {src:'images/tp_centre_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'tp_playground',name:'大埔舊墟遊樂場',type:'public',ratings:[1,1,2,1,1],
+        images:[
+          {src:'images/tp_playground_toilet.jpg',label:'廁格'},
+          {src:'images/tp_playground_sink.jpg',label:'洗手盤'},
+          {src:'images/tp_playground_facilities.jpg',label:'設施'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'central', name:'中環', region:'hk-island', color:'#2196F3',
+    mapX:47, mapY:70,
+    lat:22.281, lng:114.158, zoom:16,
+    toilets:[
+      {id:'landmark',name:'置地廣場',type:'mall',ratings:[2,2,2,2,2],
+        images:[
+          {src:'images/landmark_toilet.jpg',label:'廁格'},
+          {src:'images/landmark_sink.jpg',label:'洗手盤'},
+          {src:'images/landmark_facilities.jpg',label:'設施'},
+          {src:'images/landmark_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'lan_kwai_fong',name:'蘭桂坊公廁',type:'public',ratings:[2,1,1.5,1.5,1],
+        images:[
+          {src:'images/lan_kwai_fong_toilet.jpg',label:'廁格'},
+          {src:'images/lan_kwai_fong_sink.jpg',label:'洗手盤'},
+          {src:'images/lan_kwai_fong_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'ice_house',name:'雪廠街公廁',type:'public',ratings:[1.5,1,1.5,1.5,1.5],
+        images:[
+          {src:'images/ice_house_toilet.jpg',label:'廁格'},
+          {src:'images/ice_house_sink.jpg',label:'洗手盤'},
+          {src:'images/ice_house_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'queen_rd',name:'皇后大道中公廁',type:'public',ratings:[1,0,1.5,1,0.5],
+        images:[
+          {src:'images/queen_rd_toilet.jpg',label:'廁格'},
+          {src:'images/queen_rd_sink.jpg',label:'洗手盤'},
+          {src:'images/queen_rd_urinal.jpg',label:'尿兜'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'yuenlong', name:'元朗', region:'nt', color:'#9C27B0',
+    mapX:32, mapY:25,
+    lat:22.444, lng:114.022, zoom:15,
+    toilets:[
+      {id:'yuen_dim',name:'元點商場',type:'mall',ratings:[2,2,2,1.5,2],
+        images:[
+          {src:'images/yuen_dim_toilet.jpg',label:'廁格'},
+          {src:'images/yuen_dim_sink.jpg',label:'洗手盤'},
+          {src:'images/yuen_dim_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'tai_bei_tau',name:'大陂頭休憩花園公廁',type:'public',ratings:[1,0.5,1,1,1],
+        images:[
+          {src:'images/tai_bei_tau_toilet.jpg',label:'廁格'},
+          {src:'images/tai_bei_tau_sink.jpg',label:'洗手盤'},
+          {src:'images/tai_bei_tau_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'tai_tong_rd',name:'大棠路公廁',type:'public',ratings:[1.5,1.5,2,2,2],
+        images:[
+          {src:'images/tai_tong_rd_toilet.jpg',label:'廁格'},
+          {src:'images/tai_tong_rd_sink.jpg',label:'洗手盤'},
+          {src:'images/tai_tong_rd_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'fung_cheung',name:'鳳翔路公廁',type:'public',ratings:[2,1.5,1.5,1,1],
+        images:[
+          {src:'images/fung_cheung_toilet.jpg',label:'廁格'},
+          {src:'images/fung_cheung_sink.jpg',label:'洗手盤'},
+          {src:'images/fung_cheung_facilities.jpg',label:'設施'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'tsuenwan', name:'荃灣', region:'nt', color:'#4CAF50',
+    mapX:36, mapY:42,
+    lat:22.371, lng:114.114, zoom:15,
+    toilets:[
+      {id:'tw_plaza',name:'海之戀',type:'mall',ratings:[2,2,2,2,2],
+        images:[
+          {src:'images/tw_plaza_toilet.jpg',label:'廁格'},
+          {src:'images/tw_plaza_sink.jpg',label:'洗手盤'},
+          {src:'images/tw_plaza_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'sha_tsui',name:'大河道荃灣西鐵站',type:'public',ratings:[1,1,1.5,1.5,1.5],
+        images:[
+          {src:'images/sha_tsui_toilet.jpg',label:'廁格'},
+          {src:'images/sha_tsui_sink.jpg',label:'洗手盤'},
+          {src:'images/sha_tsui_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'tw_park',name:'曹公坊香車街',type:'public',ratings:[0.5,0.5,1.5,1,0.5],
+        images:[
+          {src:'images/tw_park_toilet.jpg',label:'廁格'},
+          {src:'images/tw_park_sink.jpg',label:'洗手盤'},
+          {src:'images/tw_park_facilities.jpg',label:'設施'}
+        ]
+      },
+      {id:'yeung_uk',name:'川龍街荃灣街市地下',type:'public',ratings:[1,0,1,1,1],
+        images:[
+          {src:'images/yeung_uk_toilet.jpg',label:'廁格'},
+          {src:'images/yeung_uk_sink.jpg',label:'洗手盤'},
+          {src:'images/yeung_uk_facilities.jpg',label:'設施'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'tko', name:'將軍澳', region:'nt', color:'#009688',
+    mapX:72, mapY:48,
+    lat:22.307, lng:114.256, zoom:14,
+    toilets:[
+      {id:'tko_centre',name:'將軍澳中心',type:'mall',ratings:[2,2,2,1,2],
+        images:[
+          {src:'images/tko_centre_toilet.jpg',label:'廁格'},
+          {src:'images/tko_centre_sink.jpg',label:'洗手盤'},
+          {src:'images/tko_centre_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'tko_pti',name:'將軍澳公共交通交匯處廁所',type:'public',ratings:[1,1,2,1,1],
+        images:[
+          {src:'images/tko_pti_toilet.jpg',label:'廁格'},
+          {src:'images/tko_pti_sink.jpg',label:'洗手盤'},
+          {src:'images/tko_pti_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'tko_promenade',name:'將軍澳海濱公園廁所',type:'public',ratings:[1,2,2,2,2],
+        images:[
+          {src:'images/tko_promenade_toilet.jpg',label:'廁格'},
+          {src:'images/tko_promenade_sink.jpg',label:'洗手盤'},
+          {src:'images/tko_promenade_urinal.jpg',label:'尿兜'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'quarrybay', name:'鰂魚涌', region:'hk-island', color:'#FF5722',
+    mapX:60, mapY:73,
+    lat:22.287, lng:114.214, zoom:15,
+    toilets:[
+      {id:'healthy_sq',name:'健威坊',type:'mall',ratings:[1,1,2,1,1],
+        images:[
+          {src:'images/healthy_sq_toilet.jpg',label:'廁格'},
+          {src:'images/healthy_sq_sink.jpg',label:'洗手盤'},
+          {src:'images/healthy_sq_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'pak_fuk',name:'百福道公廁',type:'public',ratings:[1,0.5,1.5,1,1],
+        images:[
+          {src:'images/pak_fuk_toilet.jpg',label:'廁格'},
+          {src:'images/pak_fuk_sink.jpg',label:'洗手盤'},
+          {src:'images/pak_fuk_urinal.jpg',label:'尿兜'}
+        ]
+      },
+      {id:'qb_promenade',name:'鰂魚涌海濱公廁B',type:'public',ratings:[0.5,1,0,0,1],
+        images:[
+          {src:'images/qb_promenade_toilet.jpg',label:'廁格'},
+          {src:'images/qb_promenade_sink.jpg',label:'洗手盤'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'kwuntong', name:'觀塘', region:'kowloon', color:'#F44336',
+    mapX:62, mapY:52,
+    lat:22.312, lng:114.226, zoom:15,
+    toilets:[
+      {id:'apm',name:'裕民坊商場',type:'mall',ratings:[2,1.5,2,1.5,2],
+        images:[
+          {src:'images/apm_toilet.jpeg',label:'廁格'},
+          {src:'images/apm_sink.jpeg',label:'洗手盤'},
+          {src:'images/apm_urinal.jpeg',label:'尿兜'}
+        ]
+      },
+      {id:'kt_pier',name:'瑞和街公共廁所',type:'public',ratings:[1,2,1,1,2],
+        images:[
+          {src:'images/kt_pier_toilet.jpeg',label:'廁格'},
+          {src:'images/kt_pier_sink.jpeg',label:'洗手盤'},
+          {src:'images/kt_pier_urinal.jpeg',label:'尿兜'}
+        ]
+      },
+      {id:'yue_man',name:'崇仁街公共廁所',type:'public',ratings:[1,1,1,1,1],
+        images:[
+          {src:'images/yue_man_toilet.jpeg',label:'廁格'},
+          {src:'images/yue_man_sink.jpeg',label:'洗手盤'},
+          {src:'images/yue_man_urinal.jpeg',label:'尿兜'}
+        ]
+      },
+      {id:'kt_playground',name:'基業街公共廁所',type:'public',ratings:[0,1,2,2,1],
+        images:[
+          {src:'images/kt_playground_toilet.jpeg',label:'廁格'},
+          {src:'images/kt_playground_sink.jpeg',label:'洗手盤'}
+        ]
+      }
+    ]
+  },
+  {
+    id:'airport_tc', name:'機場和東涌', region:'nt', color:'#3F51B5',
+    mapX:14, mapY:55,
+    lat:22.289, lng:113.945, zoom:12,
+    toilets:[
+      {id:'airport', name:'香港國際機場', type:'airport',
+        male:{
+          ratings:[2,2,1.5,2,2],
+          images:[
+            {src:'images/airport_m_toilet.jpg',label:'廁格'},
+            {src:'images/airport_m_sink.jpg',label:'洗手盤'}
+          ]
+        },
+        female:{
+          ratings:[1,2,2,2,2],
+          images:[
+            {src:'images/airport_f_toilet.jpg',label:'廁格'},
+            {src:'images/airport_f_sink.jpg',label:'洗手盤'}
+          ]
+        }
+      },
+      {id:'tung_chung_mall', name:'東薈城', type:'mall',
+        male:{
+          ratings:[1,1,2,1.5,1.5],
+          images:[
+            {src:'images/tung_chung_mall_m_toilet.jpg',label:'廁格'},
+            {src:'images/tung_chung_mall_m_sink.jpg',label:'洗手盤'}
+          ]
+        },
+        female:{
+          ratings:[1,2,2,2,2],
+          images:[
+            {src:'images/tung_chung_mall_f_toilet.jpg',label:'廁格'},
+            {src:'images/tung_chung_mall_f_sink.jpg',label:'洗手盤'}
+          ]
+        }
+      },
+      {id:'tc_haibin', name:'海濱路', type:'public',
+        male:{
+          ratings:[1,0.5,2,1,1],
+          images:[
+            {src:'images/tc_haibin_m_toilet.jpg',label:'廁格'},
+            {src:'images/tc_haibin_m_sink.jpg',label:'洗手盤'},
+            {src:'images/tc_haibin_m_urinal.jpg',label:'尿兜'}
+          ]
+        },
+        female:{
+          ratings:[1,1,2,1.5,1],
+          images:[
+            {src:'images/tc_haibin_f_toilet.jpg',label:'廁格'},
+            {src:'images/tc_haibin_f_sink.jpg',label:'洗手盤'}
+          ]
+        }
+      }
+    ]
+  }
+];
+
+/* ===== HELPER FUNCTIONS ===== */
+function getDistrict(id){return DISTRICTS.find(d=>d.id===id)}
+function totalScore(ratings){return ratings.reduce((a,b)=>a+b,0)}
+
+// Works for both old format (t.ratings) and new merged format (t.male/t.female)
+function getToiletScore(t){
+  if(t.ratings) return totalScore(t.ratings);
+  if(t.male && t.female){
+    const m = totalScore(t.male.ratings);
+    const f = totalScore(t.female.ratings);
+    return Math.round(((m+f)/2)*10)/10;
+  }
+  return 0;
+}
+
+function isMerged(t){return !t.ratings && t.male && t.female}
+
+function scoreColor(s,max){
+  const p=s/max;
+  if(p>=.8)return'#1b8a2d';if(p>=.6)return'#34a853';if(p>=.4)return'#fbbc04';return'#ea4335';
+}
+function scoreLabel(s){
+  if(s>=9)return'優秀';if(s>=7)return'良好';if(s>=4)return'一般';return'差';
+}
+function cellColor(v){return v>=1.5?'#34a853':v>=1?'#fb8c00':'#ea4335'}
+function typeLabel(t){return t==='mall'?'商場':t==='airport'?'機場':'公廁'}
+
+/* ===== RENDER HOME ===== */
+function renderHome(regionFilter){
+  let markersHtml = DISTRICTS.map(d=>{
+    const dim = regionFilter && d.region!==regionFilter ? ' dim':'';
+    return `<div class="map-marker${dim}" style="left:${d.mapX}%;top:${d.mapY}%" onclick="navigate('#district/${d.id}')">
+      <div class="marker-dot" style="background:${d.color}">${d.toilets.length}</div>
+      <div class="marker-label">${d.name}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="hero">
+      <h1>香港公共廁所潔淨地圖</h1>
+      <p>探索香港各區公共廁所及商場廁所的清潔評級</p>
+    </div>
+    <div class="map-section">
+      <div class="map-box">
+        <svg viewBox="0 0 1000 650" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#d4e9ff"/>
+              <stop offset="100%" stop-color="#c3dffa"/>
+            </linearGradient>
+          </defs>
+          <rect width="1000" height="650" fill="url(#water)"/>
+          <path d="M240,85 Q320,45 460,42 Q560,42 660,80 Q740,120 750,190 Q745,240 700,275 Q650,300 560,310 Q480,315 400,295 Q340,280 295,255 Q250,230 235,185 Q225,140 240,85Z" fill="#c8e6c9" stroke="#a5d6a7" stroke-width="2" opacity=".7"/>
+          <path d="M55,340 Q90,280 170,265 Q230,255 280,285 Q310,310 295,355 Q275,390 230,410 Q175,425 120,410 Q75,390 55,360Z" fill="#e1bee7" stroke="#ce93d8" stroke-width="2" opacity=".7"/>
+          <path d="M430,310 Q475,300 540,305 Q580,312 595,340 Q585,365 550,375 Q505,382 460,375 Q430,360 425,340Z" fill="#ffe0b2" stroke="#ffcc80" stroke-width="2" opacity=".7"/>
+          <path d="M360,415 Q420,395 520,398 Q590,405 630,425 Q645,440 635,460 Q615,480 560,490 Q490,497 430,490 Q385,480 368,455 Q355,435 360,415Z" fill="#bbdefb" stroke="#90caf9" stroke-width="2" opacity=".7"/>
+          <path d="M665,300 Q695,285 725,305 Q740,325 725,350 Q700,365 675,355 Q655,335 665,300Z" fill="#c8e6c9" stroke="#a5d6a7" stroke-width="2" opacity=".7"/>
+          <text x="460" y="170" text-anchor="middle" font-size="28" fill="#388e3c" font-weight="700" opacity=".5">新界</text>
+          <text x="180" y="345" text-anchor="middle" font-size="20" fill="#7b1fa2" font-weight="700" opacity=".5">大嶼山</text>
+          <text x="500" y="348" text-anchor="middle" font-size="18" fill="#e65100" font-weight="700" opacity=".5">九龍</text>
+          <text x="500" y="455" text-anchor="middle" font-size="18" fill="#1565c0" font-weight="700" opacity=".5">港島</text>
+        </svg>
+        ${markersHtml}
+      </div>
+    </div>
+    <div style="max-width:880px;margin:20px auto;padding:0 16px;text-align:center">
+      <a href="#criteria" style="display:inline-block;padding:10px 28px;background:var(--primary);color:#fff;border-radius:24px;font-weight:600;font-size:.95em;transition:.2s">📋 查看評分標準</a>
+    </div>`;
+}
+
+/* ===== RENDER DISTRICT ===== */
+function renderDistrict(districtId){
+  const d = getDistrict(districtId);
+  if(!d) return '<div class="page-wrap"><h1>找不到此地區</h1></div>';
+
+  const malls = d.toilets.filter(t=>t.type==='mall'||t.type==='airport');
+  const publics = d.toilets.filter(t=>t.type==='public');
+
+  function cardHtml(t){
+    const s = getToiletScore(t);
+    const c = scoreColor(s,10);
+    const merged = isMerged(t);
+    const genderNote = merged ? '<div style="font-size:.75em;color:var(--text2);margin-top:4px">🚹🚺 男女廁綜合評分</div>' : '';
+    return `<div class="toilet-card" style="border-left-color:${c}" onclick="navigate('#toilet/${d.id}/${t.id}')">
+      <span class="type-badge ${t.type}">${typeLabel(t.type)}</span>
+      <h3>${t.name}</h3>
+      <div class="score-row">
+        <span class="score-big" style="color:${c}">${s}</span>
+        <div class="score-bar-wrap">
+          <div class="score-bar"><div class="score-fill" style="width:${s*10}%;background:${c}"></div></div>
+          <div class="score-label">${scoreLabel(s)} · 滿分10分</div>
+        </div>
+      </div>
+      ${genderNote}
+    </div>`;
+  }
+
+  const mapSrc = `https://www.google.com/maps?q=${d.lat},${d.lng}&z=${d.zoom}&output=embed&hl=zh-TW`;
+
+  let html = `<div class="page-wrap">
+    <div class="breadcrumb"><a href="#home">首頁</a><span>›</span>${d.name}</div>
+    <h1 style="color:${d.color}">${d.name}</h1>
+    <p class="subtitle">共 ${d.toilets.length} 個廁所評級（${malls.length} 商場 · ${publics.length} 公廁）</p>
+    <iframe class="map-embed" src="${mapSrc}" allowfullscreen loading="lazy"></iframe>`;
+
+  if(malls.length){
+    html += `<div class="section-title">🏬 商場廁所</div><div class="toilet-grid">${malls.map(cardHtml).join('')}</div>`;
+  }
+  if(publics.length){
+    html += `<div class="section-title">🚻 公共廁所</div><div class="toilet-grid">${publics.map(cardHtml).join('')}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ===== BUILD RATING TABLE + PHOTOS for one set of ratings/images ===== */
+function buildRatingTable(ratings){
+  let rows = CRITERIA.map((cr,i)=>{
+    const v = ratings[i];
+    const cc = cellColor(v);
+    const descIndex = Math.round(v);
+    return `<tr>
+      <td class="crit-name">${cr}</td>
+      <td class="desc-cell">${CRITERIA_DESC[i][descIndex]}</td>
+      <td class="score-cell" style="color:${cc}">${v} / 2</td>
+    </tr>`;
+  }).join('');
+
+  const s = totalScore(ratings);
+  const c = scoreColor(s,10);
+
+  return `<table class="rating-table">
+    <thead><tr><th>指標</th><th>描述</th><th>分數</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="2" style="font-weight:700;padding:12px 14px">總分</td><td class="score-cell" style="color:${c};font-size:1.2em">${s} / 10</td></tr></tfoot>
+  </table>`;
+}
+
+function buildPhotos(images){
+  return images.map(img => `
+    <div class="photo-item">
+      <img src="${img.src}" alt="${img.label}" style="width:100%; border-radius:8px;">
+      <p style="text-align:center; margin-top:4px;">${img.label}</p>
+    </div>
+  `).join('');
+}
+
+/* ===== RENDER TOILET DETAIL ===== */
+function renderToilet(districtId, toiletId){
+  const d = getDistrict(districtId);
+  if(!d) return '<div class="page-wrap"><h1>找不到此頁面</h1></div>';
+  const t = d.toilets.find(x=>x.id===toiletId);
+  if(!t) return '<div class="page-wrap"><h1>找不到此廁所</h1></div>';
+
+  const s = getToiletScore(t);
+  const c = scoreColor(s,10);
+  const merged = isMerged(t);
+
+  let contentHtml = '';
+
+  if(merged){
+    // === MERGED: male/female tabs ===
+    const ms = totalScore(t.male.ratings);
+    const fs = totalScore(t.female.ratings);
+    const mc = scoreColor(ms,10);
+    const fc = scoreColor(fs,10);
+
+    contentHtml = `
+      <div class="gender-tabs">
+        <button class="gender-tab male-tab active" onclick="switchGender('male',this)">🚹 男廁（${ms}分）</button>
+        <button class="gender-tab female-tab" onclick="switchGender('female',this)">🚺 女廁（${fs}分）</button>
+      </div>
+      <div id="gender-male" class="gender-content active">
+        <div class="content-grid">
+          <div>
+            <div class="section-title">📊 男廁詳細評分</div>
+            ${buildRatingTable(t.male.ratings)}
+          </div>
+          <div>
+            <div class="section-title">📸 男廁現場相片</div>
+            <div class="photo-gallery">${buildPhotos(t.male.images)}</div>
+          </div>
+        </div>
+      </div>
+      <div id="gender-female" class="gender-content">
+        <div class="content-grid">
+          <div>
+            <div class="section-title">📊 女廁詳細評分</div>
+            ${buildRatingTable(t.female.ratings)}
+          </div>
+          <div>
+            <div class="section-title">📸 女廁現場相片</div>
+            <div class="photo-gallery">${buildPhotos(t.female.images)}</div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    // === SINGLE: original format ===
+    contentHtml = `
+      <div class="content-grid">
+        <div>
+          <div class="section-title">📊 詳細評分</div>
+          ${buildRatingTable(t.ratings)}
+          <div style="margin-top:16px;text-align:center">
+            <a href="#criteria" style="font-size:.85em;color:var(--primary)">📋 查看完整評分標準</a>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">📸 現場相片</div>
+          <div class="photo-gallery">${buildPhotos(t.images)}</div>
+        </div>
+      </div>`;
+  }
+
+  return `<div class="page-wrap">
+    <div class="breadcrumb">
+      <a href="#home">首頁</a><span>›</span>
+      <a href="#district/${d.id}">${d.name}</a><span>›</span>
+      ${t.name}
+    </div>
+    <div class="toilet-header">
+      <h1>${t.name}<span class="type-badge ${t.type}" style="font-size:.55em;vertical-align:middle;margin-left:10px">${typeLabel(t.type)}</span></h1>
+    </div>
+    <div class="total-score-box">
+      <div class="total-score-circle" style="background:${c}">
+        <span class="num">${s}</span>
+        <span class="den">/ 10</span>
+      </div>
+      <div class="total-desc">
+        <div class="label" style="color:${c}">評級：${scoreLabel(s)}</div>
+        <div class="sub">${merged ? '男女廁綜合平均分，根據5項指標評分，每項0-2分，滿分10分' : '根據5項指標評分，每項0-2分，滿分10分'}</div>
+      </div>
+    </div>
+    ${contentHtml}
+    <div style="margin-top:16px;text-align:center">
+      <a href="#criteria" style="font-size:.85em;color:var(--primary)">📋 查看完整評分標準</a>
+    </div>
+  </div>`;
+}
+
+/* ===== GENDER TAB SWITCH ===== */
+function switchGender(gender, btn){
+  document.querySelectorAll('.gender-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.gender-content').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('gender-'+gender).classList.add('active');
+}
+
+/* ===== RENDER CRITERIA ===== */
+function renderCriteria(){
+  let rows = CRITERIA.map((cr,i)=>{
+    return `<tr>
+      <td>${cr}</td>
+      <td style="color:#ea4335">${CRITERIA_DESC[i][0]}</td>
+      <td style="color:#fb8c00">${CRITERIA_DESC[i][1]}</td>
+      <td style="color:#34a853">${CRITERIA_DESC[i][2]}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="page-wrap">
+    <div class="breadcrumb"><a href="#home">首頁</a><span>›</span>評分標準</div>
+    <h1>📋 評分標準</h1>
+    <p class="subtitle">每項指標以 0-2 分評級，5項共10分滿分</p>
+    <table class="criteria-table">
+      <thead><tr><th>指標</th><th>0分</th><th>1分</th><th>2分</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:30px;padding:20px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)">
+      <h3 style="margin-bottom:10px">📊 總分評級對照</h3>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
+        <div style="padding:14px;background:#fce4ec;border-radius:8px"><div style="font-size:1.4em;font-weight:800;color:#ea4335">0-3</div><div style="font-weight:600;color:#c62828">差</div></div>
+        <div style="padding:14px;background:#fff8e1;border-radius:8px"><div style="font-size:1.4em;font-weight:800;color:#fb8c00">4-6</div><div style="font-weight:600;color:#e65100">一般</div></div>
+        <div style="padding:14px;background:#e8f5e9;border-radius:8px"><div style="font-size:1.4em;font-weight:800;color:#34a853">7-8</div><div style="font-weight:600;color:#2e7d32">良好</div></div>
+        <div style="padding:14px;background:#c8e6c9;border-radius:8px"><div style="font-size:1.4em;font-weight:800;color:#1b8a2d">9-10</div><div style="font-weight:600;color:#1b5e20">優秀</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ===== NAVIGATION ===== */
+let currentRegionFilter = null;
+
+function navigate(hash){
+  window.location.hash = hash;
+}
+
+function filterRegion(region, btn){
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(currentRegionFilter === region){
+    currentRegionFilter = null;
+  } else {
+    currentRegionFilter = region;
+    if(btn) btn.classList.add('active');
+  }
+  if(!window.location.hash || window.location.hash==='#home'){
+    render();
+  } else {
+    window.location.hash = '#home';
+  }
+}
+
+function render(){
+  const hash = window.location.hash || '#home';
+  const parts = hash.replace('#','').split('/');
+  const app = document.getElementById('app');
+
+  let html = '';
+  switch(parts[0]){
+    case 'home':
+    case '':
+      html = renderHome(currentRegionFilter);
+      break;
+    case 'district':
+      html = renderDistrict(parts[1]);
+      currentRegionFilter = null;
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      break;
+    case 'toilet':
+      html = renderToilet(parts[1], parts[2]);
+      currentRegionFilter = null;
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      break;
+    case 'criteria':
+      html = renderCriteria();
+      break;
+    default:
+      html = renderHome(currentRegionFilter);
+  }
+  app.innerHTML = html;
+  window.scrollTo(0,0);
+}
+
+window.addEventListener('hashchange', render);
+window.addEventListener('load', render);
+</script>
+</body>
+</html>
