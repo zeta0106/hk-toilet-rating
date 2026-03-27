@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🚻香港公共廁所潔淨地圖 | HK Toilet Rating</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
@@ -92,7 +94,6 @@ a{text-decoration:none;color:var(--primary)}
 .criteria-table td:first-child{font-weight:700;text-align:left;background:#f9f9f9}
 .criteria-table tr:last-child td{border-bottom:0}
 
-/* Gender tabs */
 .gender-tabs{display:flex;gap:0;margin-bottom:20px;border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
 .gender-tab{flex:1;padding:12px 20px;text-align:center;font-weight:700;font-size:1em;cursor:pointer;border:none;font-family:inherit;transition:.2s}
 .gender-tab.male-tab{background:#e3f2fd;color:#1565c0}
@@ -101,6 +102,17 @@ a{text-decoration:none;color:var(--primary)}
 .gender-tab.female-tab.active{background:#c62828;color:#fff}
 .gender-content{display:none}
 .gender-content.active{display:block}
+
+/* === 用戶評分 Widget === */
+.user-rating-section{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-top:24px;text-align:center}
+.user-rating-section h3{margin-bottom:4px;font-size:1.1em}
+.user-rating-section .hint{font-size:.88em;color:var(--text2);margin-bottom:12px}
+.star-rating{display:inline-flex;gap:6px;margin:8px 0}
+.star-rating .star{font-size:2.2em;color:#ddd;cursor:pointer;transition:.15s;user-select:none}
+.star-rating .star.hovered,.star-rating .star.active{color:#fbbc04}
+.rating-submitted{color:var(--green);font-weight:600;margin-top:8px;font-size:.95em}
+.rating-avg{margin-top:14px;font-size:.92em;color:var(--text2)}
+.rating-avg .avg-num{font-size:1.4em;font-weight:800;color:var(--primary)}
 
 .footer{text-align:center;padding:16px 20px;background:var(--card);border-top:1px solid var(--border);font-size:.92em}
 .footer a{font-weight:600;display:inline-flex;align-items:center;gap:6px}
@@ -144,6 +156,19 @@ a{text-decoration:none;color:var(--primary)}
 </footer>
 
 <script>
+/* === Firebase 初始化 === */
+const firebaseConfig = {
+  apiKey: "AIzaSyAr12bHe44tWh7i4CL55Ds9lZiUBmL1lUY",
+  authDomain: "hk-toilet-rating.firebaseapp.com",
+  projectId: "hk-toilet-rating",
+  storageBucket: "hk-toilet-rating.firebasestorage.app",
+  messagingSenderId: "681330157774",
+  appId: "1:681330157774:web:e0fb9362c9f86c4339089f",
+  measurementId: "G-NCXWG7WRR8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 const CRITERIA = ['地面清潔','氣味','設施完整','衛生用品','整體觀感'];
 const CRITERIA_DESC = [
   ['明顯垃圾、污漬或積水','少量水漬或輕微污漬','無明顯垃圾、無污漬、地面乾爽'],
@@ -496,6 +521,107 @@ function scoreLabel(s){
 function cellColor(v){return v>=1.5?'#34a853':v>=1?'#fb8c00':'#ea4335'}
 function typeLabel(t){return t==='mall'?'商場':t==='airport'?'機場':'公廁'}
 
+/* ===== 用戶評分功能 ===== */
+function getRatingKey(districtId, toiletId){
+  return districtId + '_' + toiletId;
+}
+
+function hasRated(key){
+  try{
+    const rated = JSON.parse(localStorage.getItem('hk_toilet_user_ratings') || '{}');
+    return rated[key] || false;
+  } catch(e){ return false }
+}
+
+function markRated(key, score){
+  try{
+    const rated = JSON.parse(localStorage.getItem('hk_toilet_user_ratings') || '{}');
+    rated[key] = score;
+    localStorage.setItem('hk_toilet_user_ratings', JSON.stringify(rated));
+  } catch(e){}
+}
+
+async function submitRating(key, score){
+  await db.collection('ratings').add({
+    toiletKey: key,
+    score: score,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  markRated(key, score);
+}
+
+async function getAverageRating(key){
+  const snapshot = await db.collection('ratings').where('toiletKey','==',key).get();
+  if(snapshot.empty) return { avg:0, count:0 };
+  let total = 0;
+  snapshot.forEach(doc => { total += doc.data().score; });
+  return { avg: Math.round((total / snapshot.size) * 10) / 10, count: snapshot.size };
+}
+
+async function loadRatingDisplay(districtId, toiletId){
+  const key = getRatingKey(districtId, toiletId);
+  const avgEl = document.getElementById('rating-avg-' + toiletId);
+  if(!avgEl) return;
+
+  const prev = hasRated(key);
+  if(prev) showRated(toiletId, prev);
+
+  try{
+    const { avg, count } = await getAverageRating(key);
+    if(count === 0){
+      avgEl.innerHTML = '暫時未有用戶評分，做第一個評分嘅人！';
+    } else {
+      const starsHtml = [1,2,3,4,5].map(i =>
+        '<span style="color:' + (i <= Math.round(avg) ? '#fbbc04' : '#ddd') + '">★</span>'
+      ).join('');
+      avgEl.innerHTML = starsHtml + ' <span class="avg-num">' + avg + '</span> / 5（共 ' + count + ' 個評分）';
+    }
+  } catch(e){
+    avgEl.innerHTML = '無法載入用戶評分';
+  }
+}
+
+function showRated(toiletId, score){
+  const stars = document.querySelectorAll('#stars-' + toiletId + ' .star');
+  stars.forEach(s => {
+    if(parseInt(s.dataset.score) <= score) s.classList.add('active');
+    s.style.pointerEvents = 'none';
+  });
+  const msgEl = document.getElementById('rating-msg-' + toiletId);
+  if(msgEl) msgEl.innerHTML = '<div class="rating-submitted">✅ 多謝你嘅評分！</div>';
+}
+
+async function handleRate(districtId, toiletId, score){
+  const key = getRatingKey(districtId, toiletId);
+  if(hasRated(key)) return;
+  const msgEl = document.getElementById('rating-msg-' + toiletId);
+  try{
+    await submitRating(key, score);
+    showRated(toiletId, score);
+    loadRatingDisplay(districtId, toiletId);
+  } catch(e){
+    if(msgEl) msgEl.innerHTML = '<div style="color:var(--accent)">提交失敗，請稍後再試</div>';
+  }
+}
+
+document.addEventListener('mouseover', function(e){
+  const star = e.target;
+  if(!star.classList.contains('star') || !star.closest('.star-rating')) return;
+  const container = star.closest('.star-rating');
+  const dId = container.dataset.district;
+  const tId = container.id.replace('stars-','');
+  if(hasRated(getRatingKey(dId, tId))) return;
+  const score = parseInt(star.dataset.score);
+  container.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('hovered', parseInt(s.dataset.score) <= score);
+  });
+});
+document.addEventListener('mouseout', function(e){
+  const star = e.target;
+  if(!star.classList.contains('star') || !star.closest('.star-rating')) return;
+  star.closest('.star-rating').querySelectorAll('.star').forEach(s => s.classList.remove('hovered'));
+});
+
 /* ===== RENDER HOME ===== */
 function renderHome(regionFilter){
   let markersHtml = DISTRICTS.map(d=>{
@@ -584,7 +710,7 @@ function renderDistrict(districtId){
   return html;
 }
 
-/* ===== BUILD RATING TABLE + PHOTOS for one set of ratings/images ===== */
+/* ===== BUILD RATING TABLE + PHOTOS ===== */
 function buildRatingTable(ratings){
   let rows = CRITERIA.map((cr,i)=>{
     const v = ratings[i];
@@ -632,8 +758,6 @@ function renderToilet(districtId, toiletId){
   if(merged){
     const ms = totalScore(t.male.ratings);
     const fs = totalScore(t.female.ratings);
-    const mc = scoreColor(ms,10);
-    const fc = scoreColor(fs,10);
 
     contentHtml = `
       <div class="gender-tabs">
@@ -681,6 +805,9 @@ function renderToilet(districtId, toiletId){
       </div>`;
   }
 
+  const escDId = d.id.replace(/'/g,"\\'");
+  const escTId = t.id.replace(/'/g,"\\'");
+
   return `<div class="page-wrap">
     <div class="breadcrumb">
       <a href="#home">首頁</a><span>›</span>
@@ -703,6 +830,15 @@ function renderToilet(districtId, toiletId){
     ${contentHtml}
     <div style="margin-top:16px;text-align:center">
       <a href="#criteria" style="font-size:.85em;color:var(--primary)">📋 查看完整評分標準</a>
+    </div>
+    <div class="user-rating-section">
+      <h3>⭐ 用戶評分</h3>
+      <p class="hint">你覺得呢個廁所點樣？（1-5星）</p>
+      <div class="star-rating" id="stars-${t.id}" data-district="${d.id}">
+        ${[1,2,3,4,5].map(i => '<span class="star" data-score="'+i+'" onclick="handleRate(\''+escDId+'\',\''+escTId+'\','+i+')">★</span>').join('')}
+      </div>
+      <div id="rating-msg-${t.id}"></div>
+      <div id="rating-avg-${t.id}" class="rating-avg">載入用戶評分中...</div>
     </div>
   </div>`;
 }
@@ -797,6 +933,11 @@ function render(){
   }
   app.innerHTML = html;
   window.scrollTo(0,0);
+
+  // 載入用戶評分
+  if(parts[0]==='toilet' && parts[1] && parts[2]){
+    loadRatingDisplay(parts[1], parts[2]);
+  }
 }
 
 window.addEventListener('hashchange', render);
