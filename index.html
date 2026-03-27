@@ -114,6 +114,21 @@ a{text-decoration:none;color:var(--primary)}
 .rating-avg{margin-top:14px;font-size:.92em;color:var(--text2)}
 .rating-avg .avg-num{font-size:1.4em;font-weight:800;color:var(--primary)}
 
+/* === 評論列表 === */
+.comments-section{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-top:16px;overflow:hidden}
+.comments-header{padding:16px 20px;border-bottom:2px solid var(--primary);font-weight:700;font-size:1.05em}
+.comment-item{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.comment-item:last-child{border-bottom:0}
+.comment-avatar{width:40px;height:40px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.2em}
+.comment-body{flex:1}
+.comment-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.comment-stars{font-size:.85em;color:#fbbc04;letter-spacing:1px}
+.comment-time{font-size:.78em;color:var(--text2)}
+.comment-text{font-size:.92em;color:var(--text);margin:0;line-height:1.5}
+.comment-text.empty{font-size:.85em;color:var(--text2);font-style:italic}
+.comment-textarea{width:100%;max-width:400px;height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:.9em;resize:vertical;outline:none;transition:.2s}
+.comment-textarea:focus{border-color:var(--primary)}
+
 .footer{text-align:center;padding:16px 20px;background:var(--card);border-top:1px solid var(--border);font-size:.92em}
 .footer a{font-weight:600;display:inline-flex;align-items:center;gap:6px}
 .ig-icon{width:20px;height:20px;display:inline-block}
@@ -541,12 +556,16 @@ function markRated(key, score){
   } catch(e){}
 }
 
-async function submitRating(key, score){
-  await db.collection('ratings').add({
+async function submitRating(key, score, comment){
+  const data = {
     toiletKey: key,
     score: score,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  };
+  if(comment && comment.trim() !== ''){
+    data.comment = comment.trim();
+  }
+  await db.collection('ratings').add(data);
   markRated(key, score);
 }
 
@@ -556,6 +575,98 @@ async function getAverageRating(key){
   let total = 0;
   snapshot.forEach(doc => { total += doc.data().score; });
   return { avg: Math.round((total / snapshot.size) * 10) / 10, count: snapshot.size };
+}
+
+async function loadComments(districtId, toiletId){
+  const key = getRatingKey(districtId, toiletId);
+  const commentsEl = document.getElementById('comments-list-' + toiletId);
+  if(!commentsEl) return;
+
+  try {
+    const snapshot = await db.collection('ratings')
+      .where('toiletKey', '==', key)
+      .orderBy('timestamp', 'desc')
+      .limit(30)
+      .get();
+
+    if(snapshot.empty){
+      commentsEl.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">暫時未有用戶評論，做第一個評論嘅人！</p>';
+      return;
+    }
+
+    let html = '';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const starsHtml = [1,2,3,4,5].map(i =>
+        '<span style="color:' + (i <= data.score ? '#fbbc04' : '#ddd') + '">★</span>'
+      ).join('');
+      const comment = data.comment || '';
+      const time = data.timestamp ? data.timestamp.toDate().toLocaleDateString('zh-HK') : '';
+      const safeComment = comment.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      html += `<div class="comment-item">
+        <div class="comment-avatar">👤</div>
+        <div class="comment-body">
+          <div class="comment-meta">
+            <span class="comment-stars">${starsHtml}</span>
+            <span class="comment-time">${time}</span>
+          </div>
+          ${safeComment
+            ? '<p class="comment-text">' + safeComment + '</p>'
+            : '<p class="comment-text empty">（只評分，未留評論）</p>'}
+        </div>
+      </div>`;
+    });
+
+    commentsEl.innerHTML = html;
+  } catch(e) {
+    // 如果索引未建立，嘗試不排序
+    try {
+      const snapshot = await db.collection('ratings')
+        .where('toiletKey', '==', key)
+        .get();
+
+      if(snapshot.empty){
+        commentsEl.innerHTML = '<p style="color:var(--text2);text-align:center;padding:20px">暫時未有用戶評論，做第一個評論嘅人！</p>';
+        return;
+      }
+
+      let items = [];
+      snapshot.forEach(doc => { items.push(doc.data()); });
+      items.sort((a,b) => {
+        const ta = a.timestamp ? a.timestamp.toDate().getTime() : 0;
+        const tb = b.timestamp ? b.timestamp.toDate().getTime() : 0;
+        return tb - ta;
+      });
+
+      let html = '';
+      items.slice(0, 30).forEach(data => {
+        const starsHtml = [1,2,3,4,5].map(i =>
+          '<span style="color:' + (i <= data.score ? '#fbbc04' : '#ddd') + '">★</span>'
+        ).join('');
+        const comment = data.comment || '';
+        const time = data.timestamp ? data.timestamp.toDate().toLocaleDateString('zh-HK') : '';
+        const safeComment = comment.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        html += `<div class="comment-item">
+          <div class="comment-avatar">👤</div>
+          <div class="comment-body">
+            <div class="comment-meta">
+              <span class="comment-stars">${starsHtml}</span>
+              <span class="comment-time">${time}</span>
+            </div>
+            ${safeComment
+              ? '<p class="comment-text">' + safeComment + '</p>'
+              : '<p class="comment-text empty">（只評分，未留評論）</p>'}
+          </div>
+        </div>`;
+      });
+
+      commentsEl.innerHTML = html;
+    } catch(e2) {
+      commentsEl.innerHTML = '<p style="color:var(--accent);text-align:center;padding:20px">無法載入評論</p>';
+    }
+  }
 }
 
 async function loadRatingDisplay(districtId, toiletId){
@@ -579,6 +690,9 @@ async function loadRatingDisplay(districtId, toiletId){
   } catch(e){
     avgEl.innerHTML = '無法載入用戶評分';
   }
+
+  // 載入評論列表
+  loadComments(districtId, toiletId);
 }
 
 function showRated(toiletId, score){
@@ -587,6 +701,10 @@ function showRated(toiletId, score){
     if(parseInt(s.dataset.score) <= score) s.classList.add('active');
     s.style.pointerEvents = 'none';
   });
+  // 隱藏評論輸入框
+  const commentBox = document.getElementById('comment-box-' + toiletId);
+  if(commentBox) commentBox.style.display = 'none';
+
   const msgEl = document.getElementById('rating-msg-' + toiletId);
   if(msgEl) msgEl.innerHTML = '<div class="rating-submitted">✅ 多謝你嘅評分！</div>';
 }
@@ -594,9 +712,14 @@ function showRated(toiletId, score){
 async function handleRate(districtId, toiletId, score){
   const key = getRatingKey(districtId, toiletId);
   if(hasRated(key)) return;
+
+  // 取得評論內容
+  const commentEl = document.getElementById('comment-' + toiletId);
+  const comment = commentEl ? commentEl.value : '';
+
   const msgEl = document.getElementById('rating-msg-' + toiletId);
   try{
-    await submitRating(key, score);
+    await submitRating(key, score, comment);
     showRated(toiletId, score);
     loadRatingDisplay(districtId, toiletId);
   } catch(e){
@@ -831,14 +954,28 @@ function renderToilet(districtId, toiletId){
     <div style="margin-top:16px;text-align:center">
       <a href="#criteria" style="font-size:.85em;color:var(--primary)">📋 查看完整評分標準</a>
     </div>
+
+    <!-- 用戶評分 -->
     <div class="user-rating-section">
       <h3>⭐ 用戶評分</h3>
       <p class="hint">你覺得呢個廁所點樣？（1-5星）</p>
       <div class="star-rating" id="stars-${t.id}" data-district="${d.id}">
         ${[1,2,3,4,5].map(i => '<span class="star" data-score="'+i+'" onclick="handleRate(\''+escDId+'\',\''+escTId+'\','+i+')">★</span>').join('')}
       </div>
+      <div id="comment-box-${t.id}" style="margin-top:12px">
+        <textarea id="comment-${t.id}" class="comment-textarea" placeholder="留低你嘅評論（選填）..." maxlength="300"></textarea>
+        <p style="font-size:.78em;color:var(--text2);margin-top:4px">💡 先撳星星就可以提交評分同評論</p>
+      </div>
       <div id="rating-msg-${t.id}"></div>
       <div id="rating-avg-${t.id}" class="rating-avg">載入用戶評分中...</div>
+    </div>
+
+    <!-- 用戶評論列表 -->
+    <div class="comments-section">
+      <div class="comments-header">💬 用戶評論</div>
+      <div id="comments-list-${t.id}">
+        <p style="color:var(--text2);text-align:center;padding:20px">載入評論中...</p>
+      </div>
     </div>
   </div>`;
 }
@@ -934,7 +1071,7 @@ function render(){
   app.innerHTML = html;
   window.scrollTo(0,0);
 
-  // 載入用戶評分
+  // 載入用戶評分及評論
   if(parts[0]==='toilet' && parts[1] && parts[2]){
     loadRatingDisplay(parts[1], parts[2]);
   }
